@@ -1,0 +1,96 @@
+version: '3'
+
+services:
+
+
+  mysql:
+    image: mysql:5.7
+    ports:
+      - 3306:3306
+    environment:
+        MYSQL_DATABASE: api_laravel_project
+        MYSQL_USER: admin
+        MYSQL_PASSWORD: 12345
+        MYSQL_RANDOM_ROOT_PASSWORD: 1
+    volumes:
+      - ./mysql:/var/lib/mysql
+    networks:
+      - app_net
+
+  laravel:
+    build:
+      context: ./laravel/vendor/laravel/sail/runtimes/8.2
+      dockerfile: Dockerfile
+      args:
+          WWWGROUP: '${WWWGROUP}'
+    image: sail-8.2/app
+    extra_hosts:
+      - 'host.docker.internal:host-gateway'
+    ports:
+      - 80:80
+      - 8000:8000
+    environment:
+      WWWUSER: '${WWWUSER}'
+      LARAVEL_SAIL: 1
+      XDEBUG_MODE: '${SAIL_XDEBUG_MODE:-off}'
+      XDEBUG_CONFIG: '${SAIL_XDEBUG_CONFIG:-client_host=host.docker.internal}'
+    volumes:
+      - ./laravel:/var/www/html
+    depends_on:
+      - mysql
+    networks:
+      - app_net
+
+  phpmyadmin:
+    image: phpmyadmin/phpmyadmin
+    ports:
+      - 8080:80
+    environment:
+      PMA_HOST: mysql
+      PMA_PORT: 3306
+    depends_on:
+      - mysql
+    networks:
+      - app_net
+
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - 3000:80
+    networks:
+      - app_net
+
+  express:
+    build: 
+      context: ./express
+      dockerfile: Dockerfile
+    ports:
+      - 4001:4001
+    depends_on:
+      - mongodb
+    networks:
+      - app_net
+
+  mongodb:
+    image: mongo:4.0.28-xenial
+    ports:
+      - 27017:27017
+    networks:
+      - app_net
+    volumes:
+      - mongo-data:/data/db
+
+networks:
+  app_net:
+    driver: bridge
+
+volumes:
+  mysql:
+    driver: local
+  laravel:
+    driver: local
+  mongo-data:
+    driver: local
